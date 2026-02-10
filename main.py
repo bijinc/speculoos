@@ -129,23 +129,50 @@ def decode(output_ids, tokenizer):
     """
     return tokenizer.decode(output_ids[0], skip_special_tokens=True)
 
-def main():
-    # draft_model_name = ""
+def run_auto_regressive_sampling(input_seq, model_name = "gpt2", T=20):
     
-    target_model_name = "gpt2"
-    target_model = AutoModelForCausalLM.from_pretrained(target_model_name)
-    tokenizer = AutoTokenizer.from_pretrained(target_model_name)
-    input_seq = "Once upon a time"
+    model = AutoModelForCausalLM.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    
     input_ids = tokenizer.encode(input_seq, return_tensors="pt")
 
-    print(f"Running auto-regressive sampling using {target_model_name}")
+    print(f"Running auto-regressive sampling using {model_name}")
     start = time.perf_counter()
 
-    output_ids = auto_regressive_sampling(model=target_model, x=input_ids, T=20)
+    output_ids = auto_regressive_sampling(model, input_ids, T)
     text = decode(output_ids, tokenizer)
 
     elapsed_time = time.perf_counter() - start
 
     print(f"Output: {text}")
     print(f"Time: {elapsed_time:.2f}s")
+
+
+def run_speculative_sampling(input_seq, draft_model_name="distilgpt2", target_model_name="gpt2", K=5, T=20):
+    
+    draft_model = AutoModelForCausalLM.from_pretrained(draft_model_name)
+    target_model = AutoModelForCausalLM.from_pretrained(target_model_name)
+    tokenizer = AutoTokenizer.from_pretrained(target_model_name)
+    
+    input_ids = tokenizer.encode(input_seq, return_tensors="pt")
+
+    print(f"Running speculative sampling using {target_model_name} with draft model {draft_model_name}")
+    start = time.perf_counter()
+
+    output_ids = speculative_sampling(target_model, draft_model, input_ids, K, T)
+    text = decode(output_ids, tokenizer)
+
+    elapsed_time = time.perf_counter() - start
+
+    print(f"Output: {text}")
+    print(f"Time: {elapsed_time:.2f}s")
+
+
+def main():
+
+    input_seq = "Once upon a time"
+
+    run_auto_regressive_sampling(input_seq, model_name="gpt2", T=20)
+    
+    # run_speculative_sampling(input_seq, draft_model_name="distilgpt2", target_model_name="gpt2", K=5, T=20) 
 
