@@ -3,17 +3,17 @@ import torch
 import random
 import time
 
-def sample_random(p):
+def sample_random(p: torch.Tensor) -> torch.Tensor:
     """Samples a token index from the given probability distribution p."""
     return torch.multinomial(p, num_samples=1)
     # return np.random.choice(np.arange(p.shape[-1]), p=p)
 
-def relu_n(x):
+def relu_n(x: torch.Tensor) -> torch.Tensor:
     """Computes the ReLU function and applies normalization"""
     x_relu = torch.relu(x)
     return x_relu / torch.sum(x_relu)
 
-def predict(model, x):
+def predict(model: AutoModelForCausalLM, x: torch.Tensor) -> torch.Tensor:
     """
     Gets the probability distribution over the next token given the input sequence x using the model.
         - model: the language model to use for prediction
@@ -30,7 +30,7 @@ def predict(model, x):
     return torch.softmax(next_token_logits, dim=-1)
 
 
-def auto_regressive_sampling(model: AutoModelForCausalLM, x, T):
+def auto_regressive_sampling(model: AutoModelForCausalLM, x: torch.Tensor, T: int) -> torch.Tensor:
     """
     Auto-regressive sampling from the target model for T steps.
         - model: the target language model to sample from
@@ -52,7 +52,14 @@ def auto_regressive_sampling(model: AutoModelForCausalLM, x, T):
 
     return x
 
-def speculative_sampling(target_model, draft_model, x, K, T, eps=1e-10):
+def speculative_sampling(
+        target_model: AutoModelForCausalLM,
+        draft_model: AutoModelForCausalLM,
+        x: torch.Tensor,
+        K: int,
+        T: int,
+        eps=1e-10
+    ) -> torch.Tensor:
     """
     Speculative sampling from the target model using a draft model for K steps.
         - target_model: the target language model to sample from
@@ -120,7 +127,7 @@ def speculative_sampling(target_model, draft_model, x, K, T, eps=1e-10):
     
     return x
 
-def decode(output_ids, tokenizer):
+def decode(output_ids: torch.Tensor, tokenizer: AutoTokenizer) -> str:
     """
     Decodes the generated token IDs into text using the model's tokenizer.
         - output_ids: the sequence of generated token IDs
@@ -129,7 +136,7 @@ def decode(output_ids, tokenizer):
     """
     return tokenizer.decode(output_ids[0], skip_special_tokens=True)
 
-def run_auto_regressive_sampling(input_seq, model_name = "gpt2", T=20):
+def run_auto_regressive_sampling(input_seq: str, model_name: str = "gpt2", T: int = 20):
     
     model = AutoModelForCausalLM.from_pretrained(model_name)
     tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -148,7 +155,13 @@ def run_auto_regressive_sampling(input_seq, model_name = "gpt2", T=20):
     print(f"Time: {elapsed_time:.2f}s")
 
 
-def run_speculative_sampling(input_seq, draft_model_name="distilgpt2", target_model_name="gpt2", K=5, T=20):
+def run_speculative_sampling(
+        input_seq: str,
+        draft_model_name: str = "distilgpt2",
+        target_model_name: str = "gpt2", 
+        K: int = 5, 
+        T: int = 20
+    ):
     
     draft_model = AutoModelForCausalLM.from_pretrained(draft_model_name)
     target_model = AutoModelForCausalLM.from_pretrained(target_model_name)
@@ -173,6 +186,6 @@ def main():
     input_seq = "Once upon a time"
 
     run_auto_regressive_sampling(input_seq, model_name="gpt2", T=20)
-    
+
     # run_speculative_sampling(input_seq, draft_model_name="distilgpt2", target_model_name="gpt2", K=5, T=20) 
 
