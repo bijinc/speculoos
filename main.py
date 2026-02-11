@@ -73,6 +73,9 @@ def speculative_sampling(
     T += n
 
     while n < T:
+        # Save the starting position for this iteration
+        n_start = n
+        
         # Drafting: auto-regressive sampling using the draft model
         x_draft = x.clone()
         draft_probs = []
@@ -95,13 +98,14 @@ def speculative_sampling(
         
         target_probs = []
         for k in range(K + 1):
-            next_token_logits = logits[:, n + k - 1, :]
+            pos = n_start - 1 + k
+            next_token_logits = logits[:, pos, :]
             target_probs.append(torch.softmax(next_token_logits, dim=-1))
 
         # Correction: accept or reject predicted tokens
         all_accepted = True
         for k in range(K):
-            j = x_draft[:, n + k]  # Token at position n+k
+            j = x_draft[:, n_start + k]  # Token at position n_start+k
             
             p_j = draft_probs[k][0, j.item()]  # Draft probability for token j
             q_j = target_probs[k][0, j.item()]  # Target probability for token j
@@ -122,7 +126,7 @@ def speculative_sampling(
         
         if all_accepted:
             # sample an extra token from target model at the last position
-            x = torch.cat([x, sample_random(target_probs[-1].unsqueeze(0))], dim=-1)
+            x = torch.cat([x, sample_random(target_probs[-1])], dim=-1)
             n += 1
     
     return x
