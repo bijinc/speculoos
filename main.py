@@ -143,7 +143,7 @@ def run_auto_regressive_sampling(input_seq: str, model_name: str = "gpt2", T: in
     
     input_ids = tokenizer.encode(input_seq, return_tensors="pt")
 
-    print(f"Running auto-regressive sampling using {model_name}")
+    print(f"\nRunning auto-regressive sampling using {model_name}")
     start = time.perf_counter()
 
     output_ids = auto_regressive_sampling(model, input_ids, T)
@@ -169,7 +169,7 @@ def run_speculative_sampling(
     
     input_ids = tokenizer.encode(input_seq, return_tensors="pt")
 
-    print(f"Running speculative sampling using {target_model_name} with draft model {draft_model_name}")
+    print(f"\nRunning speculative sampling using {target_model_name} with draft model {draft_model_name}")
     start = time.perf_counter()
 
     output_ids = speculative_sampling(target_model, draft_model, input_ids, K, T)
@@ -187,5 +187,8 @@ def main():
 
     run_auto_regressive_sampling(input_seq, model_name="gpt2", T=20)
 
-    # run_speculative_sampling(input_seq, draft_model_name="distilgpt2", target_model_name="gpt2", K=5, T=20) 
+    run_speculative_sampling(input_seq, draft_model_name="distilgpt2", target_model_name="gpt2", K=5, T=20) 
 
+
+if __name__ == "__main__":
+    main()
