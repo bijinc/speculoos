@@ -6,7 +6,6 @@ import time
 def sample_random(p: torch.Tensor) -> torch.Tensor:
     """Samples a token index from the given probability distribution p."""
     return torch.multinomial(p, num_samples=1)
-    # return np.random.choice(np.arange(p.shape[-1]), p=p)
 
 def relu_n(x: torch.Tensor) -> torch.Tensor:
     """Computes the ReLU function and applies normalization"""
@@ -38,7 +37,6 @@ def auto_regressive_sampling(model: AutoModelForCausalLM, x: torch.Tensor, T: in
         - T: the number of tokens to sample
     Returns the generated sequence of token IDs after T steps.
     """
-    # t = 1
     for _ in range(T):
         # get probabilities
         probabilities = predict(model, x)
@@ -48,7 +46,6 @@ def auto_regressive_sampling(model: AutoModelForCausalLM, x: torch.Tensor, T: in
         
         # Concatenate the new token
         x = torch.cat([x, predicted_token], dim=-1)
-        # t += 1
 
     return x
 
