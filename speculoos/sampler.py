@@ -26,12 +26,18 @@ class SpeculativeSampler:
         >>> print(text)
     """
     
-    def __init__(self, draft_model_name: str, target_model_name: str, K: int = 5, eps: float = 1e-10):
+    def __init__(self, draft_model_name: str, target_model_name: str, K: int = 5, eps: float = 1e-10, device: str = None):
         """Initialize the speculative sampler with draft and target models."""
         self.draft_model_name = draft_model_name
         self.target_model_name = target_model_name
         self.K = K
         self.eps = eps
+        
+        # Set device
+        if device is None:
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        else:
+            self.device = torch.device(device)
         
         # Load models and tokenizer
         self.draft_model = self._load_model(draft_model_name)
@@ -42,7 +48,8 @@ class SpeculativeSampler:
         """Load a causal language model from Hugging Face."""
         try:
             model = AutoModelForCausalLM.from_pretrained(model_name)
-            model.eval()  # Set to evaluation mode
+            model.eval()
+            model = model.to(self.device)
             return model
         except Exception as e:
             raise ValueError(f"Error loading model {model_name}: {e}")
@@ -57,7 +64,7 @@ class SpeculativeSampler:
         Returns:
             Token IDs tensor of shape (1, seq_len)
         """
-        return self.tokenizer.encode(text, return_tensors="pt")
+        return self.tokenizer.encode(text, return_tensors="pt").to(self.device)
     
     def decode(self, output_ids: torch.Tensor) -> str:
         """
@@ -69,7 +76,7 @@ class SpeculativeSampler:
         Returns:
             Decoded text string
         """
-        return self.tokenizer.decode(output_ids[0], skip_special_tokens=True)
+        return self.tokenizer.decode(output_ids[0].cpu(), skip_special_tokens=True)
     
     def sample(self, input_ids: torch.Tensor, T: int) -> torch.Tensor:
         """
@@ -84,6 +91,10 @@ class SpeculativeSampler:
         """
         n = input_ids.shape[-1]
         T_total = T + n
+        
+        # Track acceptance stats
+        total_drafted = 0
+        total_accepted = 0
 
         while n < T_total:
             n_start = n
@@ -116,6 +127,7 @@ class SpeculativeSampler:
 
             # Correction: accept or reject predicted tokens
             all_accepted = True
+            num_accepted = 0
             for k in range(self.K):
                 j = x_draft[:, n_start + k]  # Token at position n_start+k
                 
@@ -127,6 +139,7 @@ class SpeculativeSampler:
                     # Token accepted
                     input_ids = torch.cat([input_ids, j.unsqueeze(0)], dim=-1)
                     n += 1
+                    num_accepted += 1
                 else:
                     # Token rejected, resample from adjusted distribution
                     adjusted_probs = relu_n(target_probs[k][0] - draft_probs[k][0])
@@ -140,6 +153,14 @@ class SpeculativeSampler:
                 # Sample an extra token from target model at the last position
                 input_ids = torch.cat([input_ids, sample_random(target_probs[-1])], dim=-1)
                 n += 1
+                num_accepted += 1
+            
+            total_drafted += self.K
+            total_accepted += num_accepted
+        
+        # if total_drafted > 0:
+        #     acceptance_rate = total_accepted / total_drafted
+        #     print(f"  Acceptance rate: {acceptance_rate:.1%} ({total_accepted}/{total_drafted} tokens)")
         
         return input_ids
     
