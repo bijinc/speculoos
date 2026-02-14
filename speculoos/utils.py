@@ -8,7 +8,7 @@ def sample_random(probabilities: torch.Tensor, temperature: float = 1.0,
     Sample from probability distribution with optional temperature, top-k, top-p.
     
     Args:
-        probablities: Probability distribution tensor of shape (batch_size, vocab_size)
+        probabilities: Probability distribution tensor of shape (batch_size, vocab_size)
         temperature: Temperature for sampling (default: 1.0)
         top_k: Top-k filtering value (default: None)
         top_p: Top-p (nucleus) filtering value (default: None)
