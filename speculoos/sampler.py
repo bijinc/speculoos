@@ -19,6 +19,10 @@ class SpeculativeSampler:
         target_model_name: Name or path of the target model (e.g., "gpt2")
         K: Number of speculative tokens to generate per iteration (default: 5)
         eps: Small epsilon value for numerical stability (default: 1e-10)
+        device: Device to run the models on (default: "cuda" if available, else "cpu")
+        top_p: Top-p sampling value (default: 0.9)
+        top_k: Top-k sampling value (default: 50)
+        temperature: Sampling temperature (default: 1.0)
         
     Example:
         >>> sampler = SpeculativeSampler("distilgpt2", "gpt2", K=5)
@@ -26,12 +30,18 @@ class SpeculativeSampler:
         >>> print(text)
     """
     
-    def __init__(self, draft_model_name: str, target_model_name: str, K: int = 5, eps: float = 1e-10, device: str = None):
+    def __init__(self, draft_model_name: str, target_model_name: str, K: int = 5, eps: float = 1e-10, 
+                 device: str = None, top_p: float = 0.9, top_k: int = 50, temperature: float = 1.0):
         """Initialize the speculative sampler with draft and target models."""
         self.draft_model_name = draft_model_name
         self.target_model_name = target_model_name
         self.K = K
         self.eps = eps
+        self.sample_config = {
+            "top_p": top_p,
+            "top_k": top_k,
+            "temperature": temperature
+        }
         
         # Set device
         if device is None:
@@ -109,7 +119,7 @@ class SpeculativeSampler:
                 draft_probs.append(p)
                 
                 # Sample next token from the draft model
-                predicted_token = sample_random(p)
+                predicted_token = sample_random(p, **self.sample_config)
                 
                 # Concatenate the new token
                 x_draft = torch.cat([x_draft, predicted_token], dim=-1)
@@ -143,7 +153,7 @@ class SpeculativeSampler:
                 else:
                     # Token rejected, resample from adjusted distribution
                     adjusted_probs = relu_n(target_probs[k][0] - draft_probs[k][0])
-                    resampled_token = sample_random(adjusted_probs.unsqueeze(0))
+                    resampled_token = sample_random(adjusted_probs.unsqueeze(0), **self.sample_config)
                     input_ids = torch.cat([input_ids, resampled_token], dim=-1)
                     n += 1
                     all_accepted = False
@@ -151,7 +161,7 @@ class SpeculativeSampler:
             
             if all_accepted:
                 # Sample an extra token from target model at the last position
-                input_ids = torch.cat([input_ids, sample_random(target_probs[-1])], dim=-1)
+                input_ids = torch.cat([input_ids, sample_random(target_probs[-1], **self.sample_config)], dim=-1)
                 n += 1
                 num_accepted += 1
             
@@ -182,7 +192,7 @@ class SpeculativeSampler:
             probabilities = predict(self.target_model, x)
             
             # Sample next token
-            predicted_token = sample_random(probabilities)
+            predicted_token = sample_random(probabilities, **self.sample_config)
             
             # Concatenate the new token
             x = torch.cat([x, predicted_token], dim=-1)
